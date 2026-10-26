@@ -3,10 +3,10 @@
   ReadVerse Docker Desktop one-click start.
   Usage:
     powershell -ExecutionPolicy Bypass -File scripts\docker-start.ps1
-    powershell -ExecutionPolicy Bypass -File scripts\docker-start.ps1 -NoBuild
+    powershell -ExecutionPolicy Bypass -File scripts\docker-start.ps1 -Build   # after code changes
 #>
 param(
-    [switch]$NoBuild
+    [switch]$Build
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,16 +22,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host 'ReadVerse Docker startup' -ForegroundColor Cyan
-Write-Host 'Building/starting MySQL, Redis, backend, admin and portal...'
+Write-Host 'Starting MySQL, Redis, backend, admin and portal...'
 
-if ($NoBuild) {
-    $output = cmd.exe /c "docker compose -f deploy/docker-compose.yml up -d 2>&1"
-} else {
+if ($Build) {
     $output = cmd.exe /c "docker compose -f deploy/docker-compose.yml up -d --build 2>&1"
+} else {
+    $output = cmd.exe /c "docker compose -f deploy/docker-compose.yml up -d 2>&1"
 }
 $composeExit = $LASTEXITCODE
 $output | ForEach-Object { Write-Host $_ }
 if ($composeExit -ne 0) { throw 'docker compose up failed.' }
+if (-not $Build) {
+    Write-Host 'Tip: after changing backend/frontend code, run with -Build to rebuild images.' -ForegroundColor DarkYellow
+}
 
 Write-Host 'Waiting for backend health...'
 $healthy = $false

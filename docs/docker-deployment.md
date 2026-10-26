@@ -57,11 +57,17 @@ cd C:\Users\16098\Desktop\ReadVerse
 powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1
 ```
 
-首次会构建三个应用镜像（后端 Maven 构建约 1–2 分钟，前端 npm 构建约 1 分钟），然后启动。  
-后续不再改代码时：
+首次启动时镜像不存在会自动构建（后端 Maven 构建约 1–2 分钟，前端 npm 构建约 1 分钟），然后启动。  
+后续日常启动直接运行同一命令，不会重复构建：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1 -NoBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1
+```
+
+修改代码后需要重建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1 -Build
 ```
 
 ### 3.3 等价的 compose 命令
@@ -204,3 +210,4 @@ RabbitMQ 管理台：<http://localhost:15673>（`rv / rv123456`）。
 - `deploy/.env.example` 中的密码/JWT secret 仅用于本地演示；部署到公网前必须更换。
 - 不要把 `deploy/.env` 提交到 Git（已在 `.gitignore` 中忽略）。
 - 生产环境建议在 Nginx 层加 HTTPS、限制管理端入口 IP，并使用独立数据库账号而不是 root。
+

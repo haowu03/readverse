@@ -89,11 +89,17 @@ cd C:\Users\16098\Desktop\ReadVerse
 powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1
 ```
 
-首次会构建后端与两个前端镜像，然后启动 5 个容器；构建完成后会等待健康检查并打印地址。  
-后续只启动、不重新构建：
+首次启动时如果镜像不存在，Compose 会自动构建后端与两个前端镜像，然后启动 5 个容器并等待健康检查。  
+后续日常启动直接运行同一命令，不会重复构建：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1 -NoBuild
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1
+```
+
+修改了后端/前端代码后，需要显式重建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1 -Build
 ```
 
 | 端 | 地址 | 账号 |
@@ -330,3 +336,4 @@ cd ../web-portal && npm run build
 ---
 
 > 所有书籍/章节内容均为内置示例文本，不抓取真实站点；项目仅用于技术学习与作品展示。
+
