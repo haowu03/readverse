@@ -22,12 +22,19 @@ http.interceptors.response.use(
     return body
   },
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('rv_portal_token')
-      localStorage.removeItem('rv_portal_refresh')
-      ElMessage.warning('请先登录')
-      if (location.pathname !== '/login') {
-        location.href = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`
+    const status = error.response?.status
+    const url = String(error.config?.url || '')
+    const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register')
+    if (status === 401) {
+      if (isAuthRequest) {
+        ElMessage.error(error.response?.data?.message || '用户名或密码错误')
+      } else {
+        localStorage.removeItem('rv_portal_token')
+        localStorage.removeItem('rv_portal_refresh')
+        ElMessage.warning('请先登录')
+        if (location.pathname !== '/login') {
+          location.href = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`
+        }
       }
     } else {
       ElMessage.error(error.response?.data?.message || error.message || '网络错误')

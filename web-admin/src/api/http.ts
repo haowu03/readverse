@@ -28,11 +28,17 @@ http.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
+    const url = String(error.config?.url || '')
+    const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register')
     if (status === 401) {
-      localStorage.removeItem('rv_admin_token')
-      localStorage.removeItem('rv_admin_refresh')
-      if (location.pathname !== '/login') {
-        location.href = '/login'
+      if (isAuthRequest) {
+        ElMessage.error(error.response?.data?.message || '用户名或密码错误')
+      } else {
+        localStorage.removeItem('rv_admin_token')
+        localStorage.removeItem('rv_admin_refresh')
+        if (location.pathname !== '/login') {
+          location.href = '/login'
+        }
       }
     } else {
       ElMessage.error(error.response?.data?.message || error.message || '网络错误')
