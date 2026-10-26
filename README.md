@@ -74,6 +74,23 @@ readverse/
 
 ## 4. 本地启动
 
+### 4.0 一键启动（Windows，推荐）
+
+```powershell
+cd C:\Users\16098\Desktop\ReadVerse
+powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
+```
+
+脚本会依次检查 MySQL/Redis、启动后端（必要时先构建）、启动两个 Vite 前端，最后打印访问地址。  
+停止：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop.ps1
+# 同时停 Redis：-IncludeRedis
+```
+
+启动日志在 `logs\backend.log`、`logs\admin-dev.log`、`logs\portal-dev.log`。如果某个端口已被占用，脚本会跳过对应服务并提示。
+
 ### 4.1 前置条件
 
 - JDK 17（不要用 JDK 8；本项目以 17 编译）
