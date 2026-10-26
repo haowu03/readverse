@@ -1,74 +1,144 @@
-name: readverse
+﻿name: readverse
 
 services:
   mysql:
     image: mysql:8.0
     container_name: rv-mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
       MYSQL_ROOT_HOST: "%"
       MYSQL_DATABASE: readverse
       TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-13306}:3306"
     volumes:
-      - rv-mysql-data:/var/lib/mysql
+      - rv8-mysql-data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
-      interval: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 8s
       timeout: 5s
-      retries: 12
+      retries: 20
+      start_period: 25s
 
   redis:
-    image: redis:7.2
-    container_name: rv-redis
+    image: redis:7-alpine
+    container_name: rv-redis-docker
+    restart: unless-stopped
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-readverse}", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6380}:6379"
     volumes:
-      - rv-redis-data:/data
+      - rv8-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-readverse}", "ping"]
-      interval: 10s
+      interval: 8s
       timeout: 5s
-      retries: 12
+      retries: 20
 
   rabbitmq:
     image: rabbitmq:3.13-management
-    container_name: rv-rabbitmq
+    container_name: rv-rabbitmq-docker
+    profiles: ["mq"]
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rv}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rv123456}
+      TZ: Asia/Shanghai
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     volumes:
-      - rv-rabbitmq-data:/var/lib/rabbitmq
+      - rv8-rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 12
+      interval: 10s
+      timeout: 8s
+      retries: 20
+      start_period: 20s
 
-  # Optional: only needed if you switch rv.mq.enabled=true and want a management UI.
-  # The application still runs with the local event bus by default.
-  # xxl-job-admin:
-  #   image: xuxueli/xxl-job-admin:2.4.1
-  #   container_name: rv-xxl-job-admin
-  #   profiles: ["xxl"]
-  #   environment:
-  #     PARAMS: >-
-  #       --spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-  #       --spring.datasource.username=root
-  #       --spring.datasource.password=${MYSQL_ROOT_PASSWORD:-123456}
-  #   ports:
-  #     - "8858:8858"
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    image: readverse/backend:1.0.0
+    container_name: rv-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/readverse?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-readverse}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-rv}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rv123456}
+      RV_MQ_ENABLED: ${RV_MQ_ENABLED:-false}
+      RV_REDIS_ENABLED: "true"
+      RV_JWT_SECRET: ${RV_JWT_SECRET:-readverse-docker-secret-key-change-in-production-2026}
+      TZ: Asia/Shanghai
+    ports:
+      - "${BACKEND_PORT:-18080}:8080"
+    volumes:
+      - rv8-uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 35s
+
+  web-admin:
+    build:
+      context: ..
+      dockerfile: deploy/admin.Dockerfile
+    image: readverse/web-admin:1.0.0
+    container_name: rv-web-admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-8081}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web-portal:
+    build:
+      context: ..
+      dockerfile: deploy/portal.Dockerfile
+    image: readverse/web-portal:1.0.0
+    container_name: rv-web-portal
+    restart: unless-stopped
+    ports:
+      - "${PORTAL_PORT:-8082}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  rv-mysql-data:
-  rv-redis-data:
-  rv-rabbitmq-data:
+  rv8-mysql-data:
+  rv8-redis-data:
+  rv8-rabbitmq-data:
+  rv8-uploads:
+

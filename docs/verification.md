@@ -1,8 +1,25 @@
 # ReadVerse 验收记录
 
 > 验收日期：2026-10-26  
-> 环境：Windows · JDK 17.0.12 · MySQL 8.0.46 · Redis 5.0.14（Windows 本地）· Node 22.21.1  
-> 说明：Redis 5 是本地演示替代；生产 compose 使用 Redis 7.2。RabbitMQ 默认未启动，使用本地事件总线。
+> 环境：Windows · JDK 17.0.12 · MySQL 8.0.46 · Redis 5.0.14（本地回退模式）· Node 22.21.1 · Docker Desktop 29.9.2  
+> 说明：**主验收方式为 Docker Desktop**（MySQL 8 / Redis 7 / 后端 / 两个 Nginx 前端）。本地直跑模式作为备用，接口结果与 Docker 模式一致。
+
+## 0. Docker Desktop 部署验收
+
+| 检查 | 结果 |
+|---|---|
+| `docker compose -f deploy/docker-compose.yml ps` | 5 个容器全部 **healthy** |
+| 容器 | `rv-mysql` / `rv-redis-docker` / `rv-backend` / `rv-web-admin` / `rv-web-portal` |
+| 端口映射 | MySQL `13306→3306`、Redis `6380→6379`、Backend `18080→8080`、Admin `8081→80`、Portal `8082→80` |
+| 后端健康检查 | `http://localhost:18080/actuator/health` → **UP** |
+| Nginx 健康检查 | `http://localhost:8081/health` → `ok`；`http://localhost:8082/health` → `ok` |
+| 首次启动种子 | `Demo data seeded: roles=3, permissions=57, users=3, books=30`，布隆预热 150 章 |
+| 管理端登录（经 Nginx） | `POST http://localhost:8081/api/auth/login` → `code=0`，57 个权限点 |
+| 门户首页（经 Nginx） | `GET http://localhost:8082/api/portal/home` → 6 分类 / 8 新书 |
+| Docker E2E | 以 `8081 / 8082 / 18080` 跑 Playwright：11 个管理端路由 + 5 个门户页面，**0 console error / 0 pageerror** |
+| 镜像 | `readverse/backend:1.0.0`（518MB）、`readverse/web-admin:1.0.0`（77.3MB）、`readverse/web-portal:1.0.0`（75.8MB） |
+
+> 以下第 1–9 节记录接口与业务链路的实测结果（本地回退模式执行，Docker 模式复用同一套代码和数据库结构）。
 
 ## 1. 构建与测试
 
@@ -108,9 +125,16 @@ Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 -- PasswordEncodingTest
 
 使用 Playwright Core + 本机 Chrome 执行 `tools/e2e/verify.mjs`：
 
+```powershell
+$env:RV_ADMIN_URL='http://localhost:8081'
+$env:RV_PORTAL_URL='http://localhost:8082'
+$env:RV_API_URL='http://localhost:18080'
+node tools/e2e/verify.mjs
+```
+
 - 管理端：登录 → 看板 → 书籍/章节/作者/分类/采集/积分/用户/角色共 11 个路由，全部渲染。
 - 门户：首页 → 书详情 → 阅读器 → 登录 → 个人中心，共 5 个页面截图。
-- 浏览器控制台与网络：**0 个 404 / 0 个 pageerror**（最后一次运行）。
+- 浏览器控制台与网络：**0 个 404 / 0 个 pageerror**（Docker 端口最后一次运行）。
 - 截图见 `docs/screenshots/`。
 
 ## 9. 验收结论
@@ -136,6 +160,9 @@ java -jar rv-server/target/rv-server-1.0.0.jar
 cd web-admin; npm install; npm run dev
 cd ../web-portal; npm install; npm run dev
 
-# 浏览器验收
+# 浏览器验收（Docker 端口）
+$env:RV_ADMIN_URL='http://localhost:8081'
+$env:RV_PORTAL_URL='http://localhost:8082'
+$env:RV_API_URL='http://localhost:18080'
 node tools/e2e/verify.mjs
 ```

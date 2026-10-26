@@ -1,7 +1,10 @@
 import { chromium } from 'playwright-core'
 import fs from 'node:fs'
 
-const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+const CHROME = process.env.RV_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+const ADMIN = process.env.RV_ADMIN_URL || 'http://localhost:5173'
+const PORTAL = process.env.RV_PORTAL_URL || 'http://localhost:5174'
+const API = process.env.RV_API_URL || 'http://localhost:8080'
 const OUT = 'C:\\Users\\16098\\Desktop\\ReadVerse\\docs\\screenshots'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -27,7 +30,7 @@ async function shot(name) {
 
 try {
   // ---------- Admin ----------
-  await page.goto('http://localhost:5173/login', { waitUntil: 'domcontentloaded' })
+  await page.goto(`${ADMIN}/login`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
   await shot('admin-login')
   const inputs = page.locator('.login-box input')
@@ -41,41 +44,41 @@ try {
 
   for (const path of ['/content/books', '/content/chapters', '/content/authors', '/content/categories',
     '/operation/sources', '/operation/tasks', '/points/goods', '/points/orders', '/system/users', '/system/roles']) {
-    await page.goto('http://localhost:5173' + path, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${ADMIN}${path}`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(900)
     const body = await page.locator('body').innerText()
     console.log(path, body.includes('404') ? '404?' : 'ok', body.slice(0, 60).replace(/\n/g, ' '))
   }
-  await page.goto('http://localhost:5173/content/books', { waitUntil: 'domcontentloaded' })
+  await page.goto(`${ADMIN}/content/books`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
   await shot('admin-books')
 
   // ---------- Portal ----------
-  await page.goto('http://localhost:5174/', { waitUntil: 'domcontentloaded' })
+  await page.goto(`${PORTAL}/`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   await shot('portal-home')
 
-  const bookResp = await page.request.get('http://localhost:8080/api/portal/books?size=1')
+  const bookResp = await page.request.get(`${API}/api/portal/books?size=1`)
   const bookJson = await bookResp.json()
   const book = bookJson.data.records[0]
-  const chapterResp = await page.request.get(`http://localhost:8080/api/portal/books/${book.id}/chapters`)
+  const chapterResp = await page.request.get(`${API}/api/portal/books/${book.id}/chapters`)
   const chapterJson = await chapterResp.json()
   const chapter = chapterJson.data[0]
 
-  await page.goto(`http://localhost:5174/book/${book.id}`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${PORTAL}/book/${book.id}`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
   await shot('portal-book-detail')
 
-  await page.goto(`http://localhost:5174/read/${chapter.id}`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${PORTAL}/read/${chapter.id}`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1000)
   await shot('portal-reader')
 
-  await page.goto('http://localhost:5174/login', { waitUntil: 'domcontentloaded' })
+  await page.goto(`${PORTAL}/login`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(600)
   await page.getByRole('button', { name: /reader \/ Reader@123/ }).click()
   await page.getByRole('button', { name: '登录', exact: true }).click()
   await page.waitForTimeout(1200)
-  await page.goto('http://localhost:5174/profile', { waitUntil: 'domcontentloaded' })
+  await page.goto(`${PORTAL}/profile`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   await shot('portal-profile')
 

@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/readverse?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 5000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      encoding: UTF-8
+      continue-on-error: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:readverse}
+      database: 0
+      timeout: 3000ms
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:rv}
+    password: ${SPRING_RABBITMQ_PASSWORD:rv123456}
+
+management:
+  health:
+    redis:
+      enabled: false
+    rabbit:
+      enabled: ${RV_MQ_ENABLED:false}
+
+rv:
+  redis:
+    enabled: true
+  jwt:
+    secret: ${RV_JWT_SECRET:readverse-docker-secret-key-change-in-production-2026}
+  cache:
+    enabled: true
+    local-ttl-seconds: 60
+    chapter-ttl-seconds: 1800
+    null-ttl-seconds: 120
+    bloom-enabled: true
+  rate-limit:
+    enabled: true
+  mq:
+    enabled: ${RV_MQ_ENABLED:false}
+  scheduler:
+    enabled: ${RV_SCHEDULER_ENABLED:false}
+  upload-path: /app/uploads/
+
+logging:
+  level:
+    com.readverse: info

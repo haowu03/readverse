@@ -4,12 +4,12 @@
 
 ![管理后台](docs/screenshots/admin-dashboard.png)
 
-**在线演示（本地）**
+**在线演示（Docker Desktop）**
 
-- 管理后台：<http://localhost:5173>（`admin / Admin@123`，`operator / Operator@123`）
-- 读者门户：<http://localhost:5174>（`reader / Reader@123`）
-- 后端 Swagger：<http://localhost:8080/swagger-ui.html>
-- 健康检查：<http://localhost:8080/actuator/health>
+- 管理后台：<http://localhost:8081>（`admin / Admin@123`，`operator / Operator@123`）
+- 读者门户：<http://localhost:8082>（`reader / Reader@123`）
+- 后端 Swagger：<http://localhost:18080/swagger-ui.html>
+- 健康检查：<http://localhost:18080/actuator/health>
 
 ---
 
@@ -42,7 +42,7 @@
 |---|---|
 | 后端 | Spring Boot 3.5.16、JDK 17、Spring Security 6、MyBatis-Plus 3.5.18 |
 | 认证 | JJWT 0.12.6，Access 30min + Refresh 7d，Redis Token 白名单 |
-| 缓存 | Caffeine 3.2 + Redis 7（本地演示使用 Redis 5.0.14 Windows 版） |
+| 缓存 | Caffeine 3.2 + Redis 7（Docker Compose 中使用 `redis:7-alpine`） |
 | 锁 / 布隆 | Redisson 3.52 + Redis Bitmap 自实现布隆 |
 | 数据库 | MySQL 8.0，`schema.sql` 自动建表 + Java 初始化种子数据 |
 | 消息 | Spring AMQP / RabbitMQ（可选），默认本地事件总线 |
@@ -72,94 +72,103 @@ readverse/
 
 ---
 
-## 4. 本地启动
+## 4. Docker Desktop 启动（推荐）
 
-### 4.0 一键启动（Windows，推荐）
-
-```powershell
-cd C:\Users\16098\Desktop\ReadVerse
-powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
-```
-
-脚本会依次检查 MySQL/Redis、启动后端（必要时先构建）、启动两个 Vite 前端，最后打印访问地址。  
-停止：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\stop.ps1
-# 同时停 Redis：-IncludeRedis
-```
-
-启动日志在 `logs\backend.log`、`logs\admin-dev.log`、`logs\portal-dev.log`。如果某个端口已被占用，脚本会跳过对应服务并提示。
+> 项目已提供完整 Docker 镜像与 Compose：MySQL、Redis、后端、管理端 Nginx、门户 Nginx 全部跑在 Docker Desktop 中。
 
 ### 4.1 前置条件
 
-- JDK 17（不要用 JDK 8；本项目以 17 编译）
-- Maven 3.9+
-- MySQL 8（默认 `localhost:3306`，`root/123456`，见 `application.yml`）
-- Redis（默认 `localhost:6379`，密码 `readverse`）
-- Node 22 + npm 10
+- 安装并启动 **Docker Desktop**，确认 `docker info` 正常返回 `Server Version`
+- 不需要本机安装 JDK、Maven、MySQL、Redis、Node（镜像内已包含）
+- 默认端口未被占用：`8081`、`8082`、`18080`、`13306`、`6380`
 
-> 本项目默认不需要 RabbitMQ：`rv.mq.enabled=false` 时使用本地 `ApplicationEventPublisher`，审核通知与阅读统计照常工作。开启 RabbitMQ 只需启动 `deploy/docker-compose.yml` 中的 rabbitmq，并把 `rv.mq.enabled` 改为 `true`。
-
-### 4.2 建库
-
-```sql
-CREATE DATABASE IF NOT EXISTS readverse
-  DEFAULT CHARACTER SET utf8mb4
-  COLLATE utf8mb4_0900_ai_ci;
-```
-
-应用首次启动会执行 `rv-server/src/main/resources/schema.sql` 建表，并自动写入 30 本书、150 章、3 个角色、57 个权限点、3 个演示账号。
-
-### 4.3 启动 Redis
-
-已有 Redis 时：
-
-```bash
-redis-server --port 6379 --requirepass readverse
-```
-
-或使用 Docker：
-
-```bash
-cd deploy
-docker compose up -d mysql redis rabbitmq
-```
-
-> 如果暂时没有 Redis：启动时加 `--rv.redis.enabled=false`，Token、缓存、布隆与限流会自动降级到本地实现，便于快速看页面；正式演示仍建议使用 Redis。
->
-> 如果启用 RabbitMQ：把 `rv.mq.enabled` 改为 `true`，并把 `management.health.rabbit.enabled` 改为 `true`（默认关闭 Rabbit 健康检查，避免无 broker 时健康检查 503）。
-
-### 4.4 启动后端
+### 4.2 一键启动
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-
-mvn -B -DskipTests package
-java -jar rv-server/target/rv-server-1.0.0.jar
+cd C:\Users\16098\Desktop\ReadVerse
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1
 ```
 
-验证：
+首次会构建后端与两个前端镜像，然后启动 5 个容器；构建完成后会等待健康检查并打印地址。  
+后续只启动、不重新构建：
 
-```bash
-curl http://localhost:8080/actuator/health
-# {"status":"UP"}
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-start.ps1 -NoBuild
 ```
 
-### 4.5 启动前端
+| 端 | 地址 | 账号 |
+|---|---|---|
+| 管理后台 | http://localhost:8081 | `admin / Admin@123`、`operator / Operator@123` |
+| 读者门户 | http://localhost:8082 | `reader / Reader@123` |
+| 后端 API | http://localhost:18080 | Swagger：`/swagger-ui.html` |
+| 健康检查 | http://localhost:18080/actuator/health | 应返回 `UP` |
 
-```bash
-cd web-admin
-npm install
-npm run dev        # http://localhost:5173
+停止：
 
-cd ../web-portal
-npm install
-npm run dev        # http://localhost:5174
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\docker-stop.ps1
 ```
 
-两个 Vite 服务通过 `/api` 代理到 `http://localhost:8080`。
+> 停止不会删除 MySQL 数据；加 `-RemoveVolumes` 才会清空数据卷（下次启动重新建表/种子）。
+
+### 4.3 手动执行 Compose
+
+```powershell
+cd C:\Users\16098\Desktop\ReadVerse
+
+# 构建并启动
+docker compose -f deploy/docker-compose.yml up -d --build
+
+# 查看状态（mysql/redis/backend/web-admin/web-portal 都应为 healthy）
+docker compose -f deploy/docker-compose.yml ps
+
+# 看日志
+docker compose -f deploy/docker-compose.yml logs -f backend
+```
+
+停止/删除：
+
+```powershell
+docker compose -f deploy/docker-compose.yml down          # 保留数据卷
+docker compose -f deploy/docker-compose.yml down -v       # 清空数据卷，谨慎
+```
+
+### 4.4 端口与数据卷
+
+| 服务 | 宿主机端口 | 容器内端口 | 说明 |
+|---|---:|---:|---|
+| MySQL | 13306 | 3306 | 避免与本机 3306 冲突 |
+| Redis | 6380 | 6379 | 避免与本机 6379 冲突 |
+| Backend | 18080 | 8080 | 避免与已有 8080 服务冲突 |
+| web-admin | 8081 | 80 | Nginx 静态资源 + `/api` 反代 |
+| web-portal | 8082 | 80 | Nginx 静态资源 + `/api` 反代 |
+| RabbitMQ | 5673 / 15673 | 5672 / 15672 | 仅 `mq` profile 启用 |
+
+如需改端口：
+
+```powershell
+Copy-Item deploy\.env.example deploy\.env
+# 编辑 deploy\.env 里的 MYSQL_PORT / REDIS_PORT / BACKEND_PORT / ADMIN_PORT / PORTAL_PORT
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+数据卷：`readverse_rv8-mysql-data`、`readverse_rv8-redis-data`、`readverse_rv8-uploads`。MySQL 初始化脚本在 `deploy/mysql/init/`，应用启动时会自动建表并写入 30 本书/150 章。
+
+### 4.5 可选：启用 RabbitMQ
+
+默认 `RV_MQ_ENABLED=false`，使用本地事件总线，不需要 RabbitMQ。要演示真实 broker：
+
+```powershell
+# 1. 启动 RabbitMQ（compose 中的 mq profile）
+docker compose -f deploy/docker-compose.yml --profile mq up -d rabbitmq
+
+# 2. 在 deploy\.env 增加：
+#    RV_MQ_ENABLED=true
+# 3. 重建 backend，让它连接 broker
+docker compose -f deploy/docker-compose.yml up -d --force-recreate backend
+```
+
+RabbitMQ 管理台：<http://localhost:15673>（`rv / rv123456`）。
 
 ### 4.6 演示账号
 
@@ -169,8 +178,11 @@ npm run dev        # http://localhost:5174
 | `operator` | `Operator@123` | 运营 | 内容、采集、积分，无系统管理 |
 | `reader` | `Reader@123` | 读者 | 门户阅读、书架、评分、签到、兑换 |
 
----
+### 4.7 没有 Docker 时的本地备用
 
+如果你确实无法运行 Docker Desktop，可使用本地脚本，详见 **[docs/local-start.md](docs/local-start.md)**。
+
+---
 ## 5. 关键设计
 
 ### 5.1 JWT + RBAC
@@ -254,26 +266,36 @@ npm run dev        # http://localhost:5174
 | GET | `/api/admin/points/orders` | 兑换订单 |
 | POST | `/api/admin/points/reconcile` | 对账 |
 
-完整 OpenAPI 见 `http://localhost:8080/swagger-ui.html`。
+完整 OpenAPI 见 `http://localhost:18080/swagger-ui.html`。
 
 ---
 
 ## 7. 验证
 
 ```bash
-# 后端单测 + 构建
-mvn -B test
-mvn -B -DskipTests package
+# Docker 容器状态（5 个服务都应为 healthy）
+docker compose -f deploy/docker-compose.yml ps
 
-# 前端生产构建
-cd web-admin && npm run build
-cd ../web-portal && npm run build
+# 健康检查
+curl http://localhost:18080/actuator/health
 
-# 浏览器验收（需要本机 Chrome）
+# 浏览器验收（Docker 端口）
+$env:RV_ADMIN_URL='http://localhost:8081'
+$env:RV_PORTAL_URL='http://localhost:8082'
+$env:RV_API_URL='http://localhost:18080'
 node tools/e2e/verify.mjs
 ```
 
-验证结果、接口实测数字与截图见 **[docs/verification.md](docs/verification.md)**。
+如需在宿主机执行后端/前端构建（非 Docker）：
+
+```bash
+mvn -B test
+mvn -B -DskipTests package
+cd web-admin && npm run build
+cd ../web-portal && npm run build
+```
+
+验证结果、接口实测数字与截图见 **[docs/verification.md](docs/verification.md)**。Docker 部署细节见 **[docs/docker-deployment.md](docs/docker-deployment.md)**。
 
 | 截图 | 说明 |
 |---|---|
@@ -288,18 +310,20 @@ node tools/e2e/verify.mjs
 
 ## 8. 已知限制与下一步
 
-1. **RabbitMQ 默认未启动**：当前以本地事件总线运行；`rv.mq.enabled=true` + RabbitMQ 后自动切换监听器。本地未安装 Erlang/RabbitMQ，因此“停消费者/积压/死信”尚未做真实 broker 演示。
-2. **XXL-Job 未实际接入**：`CrawlScheduler` 提供 Spring Scheduling 兜底（`rv.scheduler.enabled=true`），XXL-Job Admin 在 compose 中保留注释；下一步把 `@XxlJob` Handler 接到同一 Service。
+1. **RabbitMQ 默认未启动**：默认使用本地事件总线；Compose 提供 `mq` profile，但本次未做真实 broker 的“停消费者/积压/死信”演示。
+2. **XXL-Job 未实际接入**：`CrawlScheduler` 提供 Spring Scheduling 兜底（`rv.scheduler.enabled=true`），XXL-Job Admin 未纳入运行栈；下一步把 `@XxlJob` Handler 接到同一 Service。
 3. **测试覆盖**：目前 4 个单元测试（JWT/BCrypt），未达到计划中的 60%；下一步补 Auth、缓存、限流、积分并发、Testcontainers 集成测试。
 4. **搜索**：当前使用 `LIKE` 兜底；生产环境建议补 MySQL ngram 全文索引或 ES。
 5. **演示数据**：书籍评分人数为种子展示值，并非逐条评分聚合；评分逻辑本身已实现并在门户可用。
-6. **部署**：未做公网部署；Vite 开发代理即可本地演示，生产需 Nginx 反代 `/api` 与静态资源。
+6. **部署**：Docker Desktop 全栈已就绪；尚未做公网域名/HTTPS 部署，生产需在 Nginx 层加 TLS、限制管理端入口并更换默认密码。
 
 ---
 
 ## 9. 文档
 
 - [项目实施计划（解析 + 8 周路线）](docs/ReadVerse-项目实施计划.md)
+- [Docker Desktop 部署说明](docs/docker-deployment.md)
+- [无 Docker 时的本地备用启动](docs/local-start.md)
 - [验收记录](docs/verification.md)
 - [截图目录](docs/screenshots)
 

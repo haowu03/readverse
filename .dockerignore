@@ -1,0 +1,16 @@
+.git
+.gitignore
+.idea
+.vscode
+**/target
+**/node_modules
+**/dist
+tools
+logs
+uploads
+.tmp
+docs
+*.log
+*.md
+.env
+.env.*
