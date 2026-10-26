@@ -1,0 +1,9 @@
+package com.readverse.crawl.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.readverse.crawl.entity.CrawlBookMap;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface CrawlBookMapMapper extends BaseMapper<CrawlBookMap> {
+}

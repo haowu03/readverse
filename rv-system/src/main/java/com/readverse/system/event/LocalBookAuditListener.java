@@ -1,0 +1,20 @@
+package com.readverse.system.event;
+
+import com.readverse.framework.mq.DomainEvent;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+@ConditionalOnProperty(name = "rv.mq.enabled", havingValue = "false", matchIfMissing = true)
+public class LocalBookAuditListener {
+
+    private final BookAuditNotificationHandler handler;
+
+    @EventListener
+    public void onEvent(DomainEvent event) {
+        handler.handle(event);
+    }
+}
