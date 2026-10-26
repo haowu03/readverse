@@ -314,18 +314,7 @@ cd ../web-portal && npm run build
 
 ---
 
-## 8. 已知限制与下一步
-
-1. **RabbitMQ 默认未启动**：默认使用本地事件总线；Compose 提供 `mq` profile，但本次未做真实 broker 的“停消费者/积压/死信”演示。
-2. **XXL-Job 未实际接入**：`CrawlScheduler` 提供 Spring Scheduling 兜底（`rv.scheduler.enabled=true`），XXL-Job Admin 未纳入运行栈；下一步把 `@XxlJob` Handler 接到同一 Service。
-3. **测试覆盖**：目前 4 个单元测试（JWT/BCrypt），未达到计划中的 60%；下一步补 Auth、缓存、限流、积分并发、Testcontainers 集成测试。
-4. **搜索**：当前使用 `LIKE` 兜底；生产环境建议补 MySQL ngram 全文索引或 ES。
-5. **演示数据**：书籍评分人数为种子展示值，并非逐条评分聚合；评分逻辑本身已实现并在门户可用。
-6. **部署**：Docker Desktop 全栈已就绪；尚未做公网域名/HTTPS 部署，生产需在 Nginx 层加 TLS、限制管理端入口并更换默认密码。
-
----
-
-## 9. 文档
+## 8. 文档
 
 - [项目实施计划（解析 + 8 周路线）](docs/ReadVerse-项目实施计划.md)
 - [Docker Desktop 部署说明](docs/docker-deployment.md)
